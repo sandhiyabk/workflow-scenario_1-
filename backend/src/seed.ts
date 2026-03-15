@@ -2,106 +2,302 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-async function main() {
-  console.log('Seeding database...');
+export async function runSeed() {
+  console.log('🌱 Seeding database with sample workflows...\n');
 
-  // 1. Create Expense Approval Workflow
-  const workflow = await prisma.workflow.create({
+  // ════════════════════════════════════════════════════════════════════════════
+  // WORKFLOW 1: Expense Approval
+  // Flow: Manager Approval → (if approved & high amount) Finance Notification
+  //                         → (if approved & high amount) CEO Approval
+  //                         → Task Rejection (default fallback)
+  // ════════════════════════════════════════════════════════════════════════════
+  const expenseWorkflow = await prisma.workflow.create({
     data: {
       name: 'Expense Approval',
       input_schema: {
-        amount: { type: 'number', required: true },
-        country: { type: 'string', required: true },
-        department: { type: 'string', required: false },
-        priority: { type: 'string', required: true, allowed_values: ['High', 'Medium', 'Low'] }
+        amount:     { type: 'number',  required: true,  description: 'Expense amount in USD' },
+        country:    { type: 'string',  required: true,  description: 'Country code (e.g. US, UK)' },
+        department: { type: 'string',  required: false, description: 'Department name' },
+        priority:   { type: 'string',  required: true,  description: 'Priority: High | Medium | Low',
+                      allowed_values: ['High', 'Medium', 'Low'] }
       }
     }
   });
 
-  // 2. Create Steps
-  const managerApproval = await prisma.step.create({
+  const expManagerApproval = await prisma.step.create({
     data: {
-      workflow_id: workflow.id,
+      workflow_id: expenseWorkflow.id,
       name: 'Manager Approval',
       step_type: 'APPROVAL',
       order: 1,
-      metadata: {}
+      metadata: {
+        assignee_email: 'manager@company.com',
+        message: 'Please review and approve this expense request.',
+        channel: 'EMAIL'
+      }
     }
   });
 
-  const financeNotification = await prisma.step.create({
+  const expFinanceNotification = await prisma.step.create({
     data: {
-      workflow_id: workflow.id,
+      workflow_id: expenseWorkflow.id,
       name: 'Finance Notification',
       step_type: 'NOTIFICATION',
       order: 2,
-      metadata: {}
+      metadata: {
+        channel: 'EMAIL',
+        recipient: 'finance@company.com',
+        template: 'A high-value expense of ${{amount}} from {{department}} ({{country}}) has been submitted and requires finance review.'
+      }
     }
   });
 
-  const ceoApproval = await prisma.step.create({
+  const expCeoApproval = await prisma.step.create({
     data: {
-      workflow_id: workflow.id,
+      workflow_id: expenseWorkflow.id,
       name: 'CEO Approval',
       step_type: 'APPROVAL',
       order: 3,
-      metadata: {}
+      metadata: {
+        assignee_email: 'ceo@company.com',
+        message: 'High-value expense requires CEO sign-off.',
+        channel: 'EMAIL'
+      }
     }
   });
 
-  const taskRejection = await prisma.step.create({
+  const expCompletionTask = await prisma.step.create({
     data: {
-      workflow_id: workflow.id,
-      name: 'Task Rejection',
+      workflow_id: expenseWorkflow.id,
+      name: 'Process Payment',
       step_type: 'TASK',
       order: 4,
-      metadata: {}
+      metadata: {
+        action: 'process_payment',
+        description: 'Initiate payment processing in the finance system'
+      }
     }
   });
 
-  // 3. Set Start Step
-  await prisma.workflow.update({
-    where: { id: workflow.id },
-    data: { start_step_id: managerApproval.id }
+  const expRejectionTask = await prisma.step.create({
+    data: {
+      workflow_id: expenseWorkflow.id,
+      name: 'Send Rejection Notice',
+      step_type: 'NOTIFICATION',
+      order: 5,
+      metadata: {
+        channel: 'EMAIL',
+        recipient: 'requester@company.com',
+        template: 'Your expense request of ${{amount}} has been rejected. Please contact your manager for details.'
+      }
+    }
   });
 
-  // 4. Create Rules for Manager Approval
-  // amount > 100 && country == "US" && priority == "High" → Finance Notification
+  // Set start step
+  await prisma.workflow.update({
+    where: { id: expenseWorkflow.id },
+    data: { start_step_id: expManagerApproval.id }
+  });
+
+  // Rules for Manager Approval step
+  // Rule 1: High-value US expense → Finance Notification (priority 1)
   await prisma.rule.create({
     data: {
-      step_id: managerApproval.id,
-      condition: 'amount > 100 && country == "US" && priority == "High"',
-      next_step_id: financeNotification.id,
+      step_id: expManagerApproval.id,
+      condition: "amount > 100 && country == 'US' && priority == 'High'",
+      next_step_id: expFinanceNotification.id,
       priority: 1
     }
   });
 
-  // amount <= 100 → CEO Approval
+  // Rule 2: Amount ≤ 100 (small expense, skip finance) → Process Payment (priority 2)
   await prisma.rule.create({
     data: {
-      step_id: managerApproval.id,
+      step_id: expManagerApproval.id,
       condition: 'amount <= 100',
-      next_step_id: ceoApproval.id,
+      next_step_id: expCompletionTask.id,
       priority: 2
     }
   });
 
-  // DEFAULT → Task Rejection
+  // Rule 3: DEFAULT → Rejection (priority 3)
   await prisma.rule.create({
     data: {
-      step_id: managerApproval.id,
+      step_id: expManagerApproval.id,
       condition: 'DEFAULT',
-      next_step_id: taskRejection.id,
+      next_step_id: expRejectionTask.id,
       priority: 3
     }
   });
 
-  console.log('Seeding completed successfully!');
+  // Rules for Finance Notification step → go to CEO Approval
+  await prisma.rule.create({
+    data: {
+      step_id: expFinanceNotification.id,
+      condition: 'DEFAULT',
+      next_step_id: expCeoApproval.id,
+      priority: 1
+    }
+  });
+
+  // Rules for CEO Approval step → Process Payment on approve
+  await prisma.rule.create({
+    data: {
+      step_id: expCeoApproval.id,
+      condition: 'DEFAULT',
+      next_step_id: expCompletionTask.id,
+      priority: 1
+    }
+  });
+
+  console.log('✅ Expense Approval workflow created');
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // WORKFLOW 2: Employee Onboarding
+  // Flow: HR Verification (TASK) → Manager Approval (APPROVAL)
+  //       → Account Creation (TASK) → Welcome Email (NOTIFICATION)
+  // ════════════════════════════════════════════════════════════════════════════
+  const onboardingWorkflow = await prisma.workflow.create({
+    data: {
+      name: 'Employee Onboarding',
+      input_schema: {
+        employee_name: { type: 'string',  required: true,  description: 'Full name of the new employee' },
+        department:    { type: 'string',  required: true,  description: 'Department they are joining' },
+        role:          { type: 'string',  required: true,  description: 'Job role / title' },
+        hr_verified:   { type: 'boolean', required: true,  description: 'Has HR completed background verification?' },
+        start_date:    { type: 'string',  required: false, description: 'Expected start date (YYYY-MM-DD)' }
+      }
+    }
+  });
+
+  const hrVerification = await prisma.step.create({
+    data: {
+      workflow_id: onboardingWorkflow.id,
+      name: 'HR Verification',
+      step_type: 'TASK',
+      order: 1,
+      metadata: {
+        action: 'run_background_check',
+        description: 'Run background check and verify employment documents',
+        assignee: 'hr-team@company.com'
+      }
+    }
+  });
+
+  const managerApproval = await prisma.step.create({
+    data: {
+      workflow_id: onboardingWorkflow.id,
+      name: 'Manager Approval',
+      step_type: 'APPROVAL',
+      order: 2,
+      metadata: {
+        assignee_email: 'manager@company.com',
+        message: 'Please approve the onboarding of {{employee_name}} for the {{role}} role in {{department}}.',
+        channel: 'EMAIL'
+      }
+    }
+  });
+
+  const accountCreation = await prisma.step.create({
+    data: {
+      workflow_id: onboardingWorkflow.id,
+      name: 'Create Employee Account',
+      step_type: 'TASK',
+      order: 3,
+      metadata: {
+        action: 'create_account',
+        description: 'Create email account, provision access, set up workstation',
+        systems: ['email', 'slack', 'github', 'jira']
+      }
+    }
+  });
+
+  const welcomeEmail = await prisma.step.create({
+    data: {
+      workflow_id: onboardingWorkflow.id,
+      name: 'Send Welcome Email',
+      step_type: 'NOTIFICATION',
+      order: 4,
+      metadata: {
+        channel: 'EMAIL',
+        recipient: 'employee_name@company.com',
+        template: 'Welcome to the team, {{employee_name}}! You are joining {{department}} as {{role}}. Your accounts have been provisioned and you are all set for your start date.'
+      }
+    }
+  });
+
+  const rejectionNotification = await prisma.step.create({
+    data: {
+      workflow_id: onboardingWorkflow.id,
+      name: 'Notify HR - Verification Failed',
+      step_type: 'NOTIFICATION',
+      order: 5,
+      metadata: {
+        channel: 'EMAIL',
+        recipient: 'hr@company.com',
+        template: 'Onboarding for {{employee_name}} could not proceed. HR verification was not confirmed.'
+      }
+    }
+  });
+
+  // Set start step
+  await prisma.workflow.update({
+    where: { id: onboardingWorkflow.id },
+    data: { start_step_id: hrVerification.id }
+  });
+
+  // Rules for HR Verification
+  // If HR verified → Manager Approval
+  await prisma.rule.create({
+    data: {
+      step_id: hrVerification.id,
+      condition: 'hr_verified == true',
+      next_step_id: managerApproval.id,
+      priority: 1
+    }
+  });
+  // DEFAULT (not verified) → Rejection notification
+  await prisma.rule.create({
+    data: {
+      step_id: hrVerification.id,
+      condition: 'DEFAULT',
+      next_step_id: rejectionNotification.id,
+      priority: 2
+    }
+  });
+
+  // Rules for Manager Approval → Account Creation
+  await prisma.rule.create({
+    data: {
+      step_id: managerApproval.id,
+      condition: 'DEFAULT',
+      next_step_id: accountCreation.id,
+      priority: 1
+    }
+  });
+
+  // Rules for Account Creation → Welcome Email
+  await prisma.rule.create({
+    data: {
+      step_id: accountCreation.id,
+      condition: 'DEFAULT',
+      next_step_id: welcomeEmail.id,
+      priority: 1
+    }
+  });
+
+  // Welcome Email has no next step → workflow ends
+
+  console.log('✅ Employee Onboarding workflow created\n');
+  console.log('🎉 Seeding completed successfully!');
+  console.log('   • Expense Approval  — ID:', expenseWorkflow.id);
+  console.log('   • Employee Onboarding — ID:', onboardingWorkflow.id);
 }
 
-main()
+// Allow running directly via: npm run seed
+runSeed()
   .catch((e) => {
-    console.error(e);
+    console.error('Seeding failed:', e);
     process.exit(1);
   })
   .finally(async () => {

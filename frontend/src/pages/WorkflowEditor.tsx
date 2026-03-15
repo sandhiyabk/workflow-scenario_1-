@@ -110,6 +110,21 @@ const WorkflowEditor = () => {
     }
   });
 
+  const addRuleMutation = useMutation({
+    mutationFn: (rule: any) => ruleService.create(rule),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['workflow', id] })
+  });
+
+  const deleteRuleMutation = useMutation({
+    mutationFn: (ruleId: string) => ruleService.delete(ruleId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['workflow', id] })
+  });
+
+  const updateRuleMutation = useMutation({
+    mutationFn: ({ id: ruleId, data }: { id: string; data: any }) => ruleService.update(ruleId, data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['workflow', id] })
+  });
+
   const executeMutation = useMutation({
     mutationFn: (data: any) => workflowService.execute(id!, data),
     onSuccess: () => {
@@ -305,8 +320,9 @@ const WorkflowEditor = () => {
                       <span>Logic & Routings</span>
                     </h4>
                     <button 
-                      onClick={() => ruleService.create({ step_id: currentStep.id, condition: 'DEFAULT', priority: 99 })}
+                      onClick={() => addRuleMutation.mutate({ step_id: currentStep.id, condition: 'DEFAULT', priority: 99 })}
                       className="p-1 text-brand-600 hover:bg-brand-50 rounded"
+                      disabled={addRuleMutation.isPending}
                     >
                       <Plus size={18} />
                     </button>
@@ -316,14 +332,14 @@ const WorkflowEditor = () => {
                     {currentStep.rules?.sort((a:any, b:any) => a.priority - b.priority).map((rule: any) => (
                       <div key={rule.id} className="p-3 bg-gray-50 rounded-xl border border-gray-100 text-sm space-y-2 group">
                         <div className="flex justify-between items-center">
-                          <input 
+                           <input 
                             type="number"
                             className="bg-transparent w-8 text-[10px] font-bold text-gray-400 border-none p-0 focus:ring-0"
                             defaultValue={rule.priority}
-                            onBlur={(e) => ruleService.update(rule.id, { priority: parseInt(e.target.value) })}
+                            onBlur={(e) => updateRuleMutation.mutate({ id: rule.id, data: { priority: parseInt(e.target.value) } })}
                           />
                           <button 
-                            onClick={() => ruleService.delete(rule.id)}
+                            onClick={() => deleteRuleMutation.mutate(rule.id)}
                             className="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
                           >
                             <Trash2 size={12} />
@@ -334,16 +350,16 @@ const WorkflowEditor = () => {
                            <input 
                               type="text" 
                               className="flex-grow bg-white border border-gray-200 rounded px-2 py-1 text-[11px] font-mono"
-                              defaultValue={rule.condition}
-                              onBlur={(e) => ruleService.update(rule.id, { condition: e.target.value })}
+                               defaultValue={rule.condition}
+                               onBlur={(e) => updateRuleMutation.mutate({ id: rule.id, data: { condition: e.target.value } })}
                            />
                         </div>
                         <div className="flex items-center space-x-2">
                           <span className="text-[10px] font-bold text-gray-400">THEN</span>
                           <select 
                              className="flex-grow bg-white border border-gray-200 rounded px-2 py-1 text-[11px]"
-                             defaultValue={rule.next_step_id || ''}
-                             onChange={(e) => ruleService.update(rule.id, { next_step_id: e.target.value || null })}
+                              defaultValue={rule.next_step_id || ''}
+                              onChange={(e) => updateRuleMutation.mutate({ id: rule.id, data: { next_step_id: e.target.value || null } })}
                           >
                              <option value="">End Workflow</option>
                              {workflow.steps.filter((s:any) => s.id !== activeStepId).map((s:any) => (

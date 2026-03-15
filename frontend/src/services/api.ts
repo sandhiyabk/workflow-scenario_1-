@@ -59,6 +59,10 @@ export const ruleService = {
 };
 
 export const executionService = {
+  list: async () => {
+    const { data } = await api.get('/executions');
+    return data;
+  },
   get: async (id: string) => {
     const { data } = await api.get(`/executions/${id}`);
     return data;
@@ -77,6 +81,13 @@ export const executionService = {
   },
   approve: async (id: string, payload: any) => {
     const { data } = await api.post(`/executions/${id}/approve`, payload);
+    return data;
+  }
+};
+
+export const seedService = {
+  run: async () => {
+    const { data } = await api.post('/seed');
     return data;
   }
 };

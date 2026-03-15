@@ -76,7 +76,7 @@ model ExecutionLog {
   status            String
   approver_id       String?
   error_message     String?
-  metadata          Json?     @default("{}")
+  metadata          Json?
   started_at        DateTime  @default(now())
   ended_at          DateTime?
 
