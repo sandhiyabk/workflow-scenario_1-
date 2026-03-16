@@ -1,9 +1,9 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { WorkflowEngine } from '../engine/workflowEngine/index.js';
+import { ExecutionEngine } from '../engines/executionEngine.js';
 
 const prisma = new PrismaClient();
-const workflowEngine = new WorkflowEngine();
+const executionEngine = new ExecutionEngine();
 
 export const createWorkflow = async (req: Request, res: Response) => {
   try {
@@ -101,7 +101,7 @@ export const deleteWorkflow = async (req: Request, res: Response) => {
 export const executeWorkflow = async (req: Request, res: Response) => {
   try {
     const { input_data, triggered_by } = req.body;
-    const execution = await workflowEngine.executeWorkflow(req.params.id as string, input_data, triggered_by);
+    const execution = await executionEngine.executeWorkflow(req.params.id as string, input_data, triggered_by);
     res.json(execution);
   } catch (error: any) {
     res.status(400).json({ error: error.message });
@@ -111,7 +111,7 @@ export const executeWorkflow = async (req: Request, res: Response) => {
 export const handleWebhook = async (req: Request, res: Response) => {
   try {
     const inputData = req.body;
-    const execution = await workflowEngine.executeWorkflow(
+    const execution = await executionEngine.executeWorkflow(
       req.params.id as string, 
       inputData, 
       `WEBHOOK_${req.ip}`

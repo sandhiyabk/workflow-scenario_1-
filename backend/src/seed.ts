@@ -288,10 +288,68 @@ export async function runSeed() {
 
   // Welcome Email has no next step → workflow ends
 
-  console.log('✅ Employee Onboarding workflow created\n');
+  // ════════════════════════════════════════════════════════════════════════════
+  // WORKFLOW 3: Reliable Data Sync (Retry & Timeout Demo)
+  // ════════════════════════════════════════════════════════════════════════════
+  const syncWorkflow = await prisma.workflow.create({
+    data: {
+      name: 'Reliable Data Sync',
+      input_schema: {
+        sync_id: { type: 'string', required: true },
+        priority: { type: 'number', required: false }
+      }
+    }
+  });
+
+  const flakeyStep = await prisma.step.create({
+    data: {
+      workflow_id: syncWorkflow.id,
+      name: 'Fetch Remote Data (FAIL)', // "FAIL" in name triggers mock failure in ExecutionEngine
+      step_type: 'TASK',
+      order: 1,
+      metadata: {
+        action: 'fetch_data',
+        max_retries: 3,
+        delay_ms: 1000,
+        retry_strategy: 'exponential',
+        timeout_ms: 5000
+      }
+    }
+  });
+
+  const finalSyncStep = await prisma.step.create({
+    data: {
+      workflow_id: syncWorkflow.id,
+      name: 'Finalize Sync',
+      step_type: 'NOTIFICATION',
+      order: 2,
+      metadata: {
+        channel: 'SLACK',
+        recipient: '#ops-channel',
+        template: 'Data sync {{sync_id}} completed after retries.'
+      }
+    }
+  });
+
+  await prisma.workflow.update({
+    where: { id: syncWorkflow.id },
+    data: { start_step_id: flakeyStep.id }
+  });
+
+  await prisma.rule.create({
+    data: {
+      step_id: flakeyStep.id,
+      condition: 'DEFAULT',
+      next_step_id: finalSyncStep.id,
+      priority: 1
+    }
+  });
+
+  console.log('✅ Reliable Data Sync workflow created\n');
   console.log('🎉 Seeding completed successfully!');
-  console.log('   • Expense Approval  — ID:', expenseWorkflow.id);
-  console.log('   • Employee Onboarding — ID:', onboardingWorkflow.id);
+  console.log('   • Expense Approval     — ID:', expenseWorkflow.id);
+  console.log('   • Employee Onboarding  — ID:', onboardingWorkflow.id);
+  console.log('   • Reliable Data Sync   — ID:', syncWorkflow.id);
 }
 
 // Allow running directly via: npm run seed

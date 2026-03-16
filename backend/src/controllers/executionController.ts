@@ -1,9 +1,9 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { WorkflowEngine } from '../engine/workflowEngine/index.js';
+import { ExecutionEngine } from '../engines/executionEngine.js';
 
 const prisma = new PrismaClient();
-const workflowEngine = new WorkflowEngine();
+const executionEngine = new ExecutionEngine();
 
 export const listExecutions = async (req: Request, res: Response) => {
   try {
@@ -44,7 +44,7 @@ export const getExecutionLogs = async (req: Request, res: Response) => {
 
 export const cancelExecution = async (req: Request, res: Response) => {
   try {
-    const execution = await workflowEngine.cancelExecution(req.params.id as string);
+    const execution = await executionEngine.cancelExecution(req.params.id as string);
     res.json(execution);
   } catch (error: any) {
     res.status(400).json({ error: error.message });
@@ -53,7 +53,7 @@ export const cancelExecution = async (req: Request, res: Response) => {
 
 export const retryExecution = async (req: Request, res: Response) => {
   try {
-    await workflowEngine.retryExecution(req.params.id as string);
+    await executionEngine.retryExecution(req.params.id as string);
     res.json({ message: 'Retry initiated' });
   } catch (error: any) {
     res.status(400).json({ error: error.message });
@@ -63,7 +63,7 @@ export const retryExecution = async (req: Request, res: Response) => {
 export const approveStep = async (req: Request, res: Response) => {
   try {
     const { approver_id, approved, additional_data } = req.body;
-    await workflowEngine.resumeApproval(req.params.id as string, approver_id, approved, additional_data);
+    await executionEngine.resumeApproval(req.params.id as string, approver_id, approved, additional_data);
     res.json({ message: 'Approval processed' });
   } catch (error: any) {
     res.status(400).json({ error: error.message });

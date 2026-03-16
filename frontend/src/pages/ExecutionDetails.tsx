@@ -126,7 +126,15 @@ const ExecutionDetails = () => {
             </div>
             
             <div className="p-6 space-y-8">
-              {logs?.map((log: any, index: number) => (
+              {logs?.map((log: any, index: number) => {
+                const evaluatedRules = typeof log.evaluated_rules === 'string' 
+                  ? JSON.parse(log.evaluated_rules) 
+                  : (log.evaluated_rules || []);
+                const metadata = typeof log.metadata === 'string'
+                  ? JSON.parse(log.metadata)
+                  : (log.metadata || {});
+                
+                return (
                 <div key={log.id} className="relative pl-8 pb-8 last:pb-0">
                   {/* Vertical Line */}
                   {index < logs.length - 1 && (
@@ -150,18 +158,37 @@ const ExecutionDetails = () => {
                         <h4 className="font-bold text-gray-900">{log.step_name}</h4>
                         <p className="text-xs text-gray-500 uppercase font-semibold">{log.step_type}</p>
                       </div>
-                      <span className="text-xs text-gray-400 font-mono">
-                        {log.ended_at ? `${Math.round((new Date(log.ended_at).getTime() - new Date(log.started_at).getTime()))}ms` : 'In progress...'}
+                      <span className="text-xs text-gray-400 font-mono flex items-center gap-1">
+                        <Clock size={12} />
+                        {metadata.duration_ms 
+                          ? `${metadata.duration_ms}ms` 
+                          : log.ended_at 
+                            ? `${Math.round((new Date(log.ended_at).getTime() - new Date(log.started_at).getTime()))}ms` 
+                            : 'In progress...'}
                       </span>
                     </div>
 
-                    {log.evaluated_rules?.length > 0 && (
+                    {log.error_message && (
+                      <div className="bg-red-50 border border-red-100 rounded-lg p-3 text-red-700 text-sm">
+                        <div className="font-bold mb-1 flex items-center gap-2">
+                          <XOctagon size={14} /> Error Encountered
+                        </div>
+                        <p>{log.error_message}</p>
+                        {metadata.error && (
+                          <pre className="mt-2 text-xs bg-red-100 p-2 rounded overflow-x-auto text-red-800 font-mono">
+                            {JSON.stringify(metadata.error, null, 2)}
+                          </pre>
+                        )}
+                      </div>
+                    )}
+
+                    {evaluatedRules.length > 0 && (
                       <div className="bg-gray-50 rounded-lg p-3 space-y-2">
                          <div className="flex items-center space-x-1 text-xs text-gray-500 font-semibold mb-2">
                            <Code size={14} />
                            <span>RULE EVALUATIONS</span>
                          </div>
-                         {log.evaluated_rules.map((rule: any, i: number) => (
+                         {evaluatedRules.map((rule: any, i: number) => (
                            <div key={i} className="flex justify-between items-center text-xs">
                              <span className="font-mono text-gray-600">{rule.condition}</span>
                              <span className={`font-bold ${rule.isMatch ? 'text-green-600' : 'text-red-400'}`}>
@@ -179,7 +206,7 @@ const ExecutionDetails = () => {
                     )}
                   </div>
                 </div>
-              ))}
+              )})}
               
               {execution.status === 'PENDING' && (
                 <div className="bg-brand-50 border border-brand-100 rounded-xl p-6 mt-4">

@@ -24,7 +24,8 @@ import {
   X,
   CheckCircle,
   Bell,
-  Activity
+  Activity,
+  Clock
 } from 'lucide-react';
 
 import ExecutionModal from '../components/ExecutionModal';
@@ -159,10 +160,14 @@ const WorkflowEditor = () => {
             id: `e-${rule.id}`,
             source: step.id,
             target: rule.next_step_id,
-            label: rule.condition.length > 10 ? '...' : rule.condition,
-            markerEnd: { type: MarkerType.ArrowClosed },
             animated: true,
-            style: { strokeWidth: 2 }
+            label: rule.condition === 'DEFAULT' ? 'Default' : rule.condition,
+            labelStyle: { fill: '#6b7280', fontWeight: 600, fontSize: 10 },
+            labelBgPadding: [8, 4],
+            labelBgBorderRadius: 4,
+            labelBgStyle: { fill: '#f9fafb', fillOpacity: 0.8 },
+            markerEnd: { type: MarkerType.ArrowClosed, color: '#6366f1' },
+            style: { stroke: '#6366f1', strokeWidth: 2 }
           });
         }
       });
@@ -310,6 +315,67 @@ const WorkflowEditor = () => {
                     >
                       {workflow.start_step_id === currentStep.id ? 'Starting Step' : 'Set as Start'}
                     </button>
+                  </div>
+
+                  <div className="pt-6 border-t border-gray-100 space-y-4">
+                    <h4 className="text-xs font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                       <Clock size={14} className="text-brand-500" /> Advanced Settings
+                    </h4>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase">Timeout (ms)</label>
+                        <input 
+                           type="number"
+                           className="input text-xs py-1"
+                           placeholder="60000"
+                           defaultValue={(currentStep.metadata as any)?.timeout_ms || ''}
+                           onBlur={(e) => stepService.update(currentStep.id, { 
+                             metadata: { ...(currentStep.metadata as any), timeout_ms: parseInt(e.target.value) || null } 
+                           })}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase">Max Retries</label>
+                        <input 
+                           type="number"
+                           className="input text-xs py-1"
+                           placeholder="0"
+                           defaultValue={(currentStep.metadata as any)?.max_retries || 0}
+                           onBlur={(e) => stepService.update(currentStep.id, { 
+                             metadata: { ...(currentStep.metadata as any), max_retries: parseInt(e.target.value) || 0 } 
+                           })}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase">Retry Strategy</label>
+                        <select 
+                           className="input text-xs py-1"
+                           defaultValue={(currentStep.metadata as any)?.retry_strategy || 'fixed'}
+                           onChange={(e) => stepService.update(currentStep.id, { 
+                             metadata: { ...(currentStep.metadata as any), retry_strategy: e.target.value } 
+                           })}
+                        >
+                          <option value="fixed">Fixed</option>
+                          <option value="exponential">Exponential</option>
+                        </select>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase">Retry Delay (ms)</label>
+                        <input 
+                           type="number"
+                           className="input text-xs py-1"
+                           placeholder="1000"
+                           defaultValue={(currentStep.metadata as any)?.delay_ms || 1000}
+                           onBlur={(e) => stepService.update(currentStep.id, { 
+                             metadata: { ...(currentStep.metadata as any), delay_ms: parseInt(e.target.value) || 1000 } 
+                           })}
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
 

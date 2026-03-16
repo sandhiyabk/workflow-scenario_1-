@@ -60,28 +60,35 @@ export const ruleService = {
 
 export const executionService = {
   list: async () => {
-    const { data } = await api.get('/executions');
-    return data;
+    const response = await api.get('/executions');
+    return response.data;
   },
   get: async (id: string) => {
-    const { data } = await api.get(`/executions/${id}`);
-    return data;
+    const response = await api.get(`/executions/${id}`);
+    return response.data;
   },
   getLogs: async (id: string) => {
-    const { data } = await api.get(`/executions/${id}/logs`);
-    return data;
+    const response = await api.get(`/executions/${id}/logs`);
+    return response.data;
   },
   cancel: async (id: string) => {
-    const { data } = await api.post(`/executions/${id}/cancel`);
-    return data;
+    const response = await api.post(`/executions/${id}/cancel`);
+    return response.data;
   },
   retry: async (id: string) => {
-    const { data } = await api.post(`/executions/${id}/retry`);
-    return data;
+    const response = await api.post(`/executions/${id}/retry`);
+    return response.data;
   },
-  approve: async (id: string, payload: any) => {
-    const { data } = await api.post(`/executions/${id}/approve`, payload);
-    return data;
+  approve: async (id: string, data: { approved: boolean; approver_id: string; additional_data?: any }) => {
+    const response = await api.post(`/executions/${id}/approve`, data);
+    return response.data;
+  }
+};
+
+export const statsService = {
+  get: async () => {
+    const response = await api.get('/stats');
+    return response.data;
   }
 };
 

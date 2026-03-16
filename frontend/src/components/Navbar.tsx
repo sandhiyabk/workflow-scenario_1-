@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Activity, Layout, Layers } from 'lucide-react';
+import { Activity, Layout, Layers, PieChart } from 'lucide-react';
 
 const Navbar = () => {
   const location = useLocation();
@@ -20,6 +20,15 @@ const Navbar = () => {
           </div>
           
           <div className="flex space-x-8">
+            <Link 
+              to="/dashboard" 
+              className={`flex items-center space-x-2 font-medium transition-colors ${
+                isActive('/dashboard') ? 'text-brand-600' : 'text-gray-500 hover:text-gray-900'
+              }`}
+            >
+              <PieChart size={18} />
+              <span>Dashboard</span>
+            </Link>
             <Link 
               to="/workflows" 
               className={`flex items-center space-x-2 font-medium transition-colors ${
