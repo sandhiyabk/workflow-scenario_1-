@@ -8,6 +8,7 @@ import statsRoutes from './routes/statsRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import { runSeed } from './seed.js';
 import { logger } from './utils/logger.js';
+import { errorHandler } from './middleware/errorHandler.js';
 
 const app = express();
 
@@ -16,11 +17,9 @@ const allowedOrigins = process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : [
 
 app.use(cors({
   origin: (origin, callback) => {
-    logger.info(`CORS Check: Origin=${origin}, AllowedOrigins=${JSON.stringify(allowedOrigins)}`);
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      logger.error(`CORS Blocked: Origin=${origin} not in ${JSON.stringify(allowedOrigins)}`);
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -38,7 +37,6 @@ app.use((req, res, next) => {
   });
   next();
 });
-
 
 // Routes
 app.use('/workflows', workflowRoutes);
@@ -62,5 +60,8 @@ app.post('/seed', async (req, res) => {
 app.get('/health', (_, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+
+// Global Error Handler (MUST BE LAST)
+app.use(errorHandler);
 
 export default app;
