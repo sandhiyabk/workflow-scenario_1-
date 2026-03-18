@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { workflowService, seedService } from '../services/api';
+import { toast } from 'react-hot-toast';
 import { Plus, Search, Edit, Trash2, Loader2, ChevronRight, Layout, Database, CheckCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const WorkflowList = () => {
   const [search, setSearch] = useState('');
-  const [seedMsg, setSeedMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const queryClient = useQueryClient();
+
 
   const { data: result, isLoading } = useQuery({
     queryKey: ['workflows', search],
@@ -20,28 +21,31 @@ const WorkflowList = () => {
     mutationFn: () => workflowService.create({ name: 'New Workflow', input_schema: {} }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workflows'] });
-    }
+      toast.success('Workflow created');
+    },
+    onError: () => toast.error('Failed to create workflow')
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => workflowService.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workflows'] });
-    }
+      toast.success('Workflow deleted');
+    },
+    onError: () => toast.error('Failed to delete workflow')
   });
 
   const seedMutation = useMutation({
     mutationFn: () => seedService.run(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workflows'] });
-      setSeedMsg({ ok: true, text: 'Sample workflows loaded! "Expense Approval" and "Employee Onboarding" are now available.' });
-      setTimeout(() => setSeedMsg(null), 6000);
+      toast.success('Sample workflows loaded successfully');
     },
     onError: (err: any) => {
-      setSeedMsg({ ok: false, text: err.response?.data?.error || 'Seeding failed. Please try again.' });
-      setTimeout(() => setSeedMsg(null), 5000);
+      toast.error(err.response?.data?.error || 'Seeding failed');
     }
   });
+
 
   return (
     <div className="space-y-6">
@@ -70,19 +74,8 @@ const WorkflowList = () => {
         </div>
       </div>
 
-      {/* Seed message toast */}
-      {seedMsg && (
-        <div className={`flex items-center space-x-3 px-5 py-4 rounded-xl border text-sm font-medium animate-in fade-in slide-in-from-top-2 duration-300 ${
-          seedMsg.ok
-            ? 'bg-green-50 border-green-200 text-green-800'
-            : 'bg-red-50 border-red-200 text-red-800'
-        }`}>
-          <CheckCircle size={18} className={seedMsg.ok ? 'text-green-600' : 'text-red-600'} />
-          <span>{seedMsg.text}</span>
-        </div>
-      )}
-
       <div className="flex space-x-4 items-center bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+
         <div className="relative flex-grow">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
           <input

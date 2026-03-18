@@ -7,11 +7,38 @@ import executionRoutes from './routes/executionRoutes.js';
 import statsRoutes from './routes/statsRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import { runSeed } from './seed.js';
+import { logger } from './utils/logger.js';
 
 const app = express();
 
-app.use(cors());
+// Middleware
+const allowedOrigins = process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : ['http://localhost:5173', 'http://localhost:3000'];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    logger.info(`CORS Check: Origin=${origin}, AllowedOrigins=${JSON.stringify(allowedOrigins)}`);
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      logger.error(`CORS Blocked: Origin=${origin} not in ${JSON.stringify(allowedOrigins)}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
+}));
+
 app.use(express.json());
+
+// Request logging middleware
+app.use((req, res, next) => {
+  logger.info(`${req.method} ${req.path}`, {
+    query: req.query,
+    body: req.method !== 'GET' ? req.body : undefined,
+    ip: req.ip
+  });
+  next();
+});
+
 
 // Routes
 app.use('/workflows', workflowRoutes);

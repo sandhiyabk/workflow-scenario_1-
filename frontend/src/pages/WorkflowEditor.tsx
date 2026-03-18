@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { workflowService, stepService, ruleService } from '../services/api';
+import { toast } from 'react-hot-toast';
 import ReactFlow, { 
   Background, 
   Controls, 
@@ -95,12 +96,20 @@ const WorkflowEditor = () => {
 
   const updateWorkflowMutation = useMutation({
     mutationFn: (data: any) => workflowService.update(id!, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['workflow', id] })
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workflow', id] });
+      toast.success('Workflow updated');
+    },
+    onError: () => toast.error('Failed to update workflow')
   });
 
   const addStepMutation = useMutation({
     mutationFn: (data: any) => stepService.create({ ...data, workflow_id: id }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['workflow', id] })
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workflow', id] });
+      toast.success('Step added');
+    },
+    onError: () => toast.error('Failed to add step')
   });
 
   const deleteStepMutation = useMutation({
@@ -108,33 +117,49 @@ const WorkflowEditor = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workflow', id] });
       setActiveStepId(null);
-    }
+      toast.success('Step removed');
+    },
+    onError: () => toast.error('Failed to remove step')
   });
 
   const addRuleMutation = useMutation({
     mutationFn: (rule: any) => ruleService.create(rule),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['workflow', id] })
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workflow', id] });
+      toast.success('Rule added');
+    },
+    onError: () => toast.error('Failed to add rule')
   });
 
   const deleteRuleMutation = useMutation({
     mutationFn: (ruleId: string) => ruleService.delete(ruleId),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['workflow', id] })
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workflow', id] });
+      toast.success('Rule removed');
+    },
+    onError: () => toast.error('Failed to remove rule')
   });
 
   const updateRuleMutation = useMutation({
     mutationFn: ({ id: ruleId, data }: { id: string; data: any }) => ruleService.update(ruleId, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['workflow', id] })
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workflow', id] });
+      toast.success('Rule updated');
+    },
+    onError: () => toast.error('Failed to update rule')
   });
 
   const executeMutation = useMutation({
     mutationFn: (data: any) => workflowService.execute(id!, data, 'demo-user-123'),
     onSuccess: () => {
+      toast.success('Execution started');
       navigate('/executions');
     },
     onError: (err: any) => {
-        alert(err.response?.data?.error || 'Execution failed');
+        toast.error(err.response?.data?.error || 'Execution failed');
     }
   });
+
 
   const nodes = useMemo(() => {
     if (!workflow?.steps) return [];
