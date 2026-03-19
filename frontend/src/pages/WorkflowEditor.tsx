@@ -253,6 +253,16 @@ const WorkflowEditor = () => {
             nodes={nodes} 
             edges={edges}
             nodeTypes={nodeTypes}
+            onConnect={(params) => {
+              if (params.source && params.target) {
+                addRuleMutation.mutate({
+                  step_id: params.source,
+                  next_step_id: params.target,
+                  condition: 'DEFAULT',
+                  priority: 99
+                });
+              }
+            }}
             onNodeClick={(_, node) => setActiveStepId(node.id)}
             onNodeDragStop={(_, node) => {
               const step = workflow.steps.find((s:any) => s.id === node.id);
